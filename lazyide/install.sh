@@ -38,6 +38,14 @@ err()   { printf "${RED}error${RESET} %s\n" "$*" >&2; exit 1; }
 
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
+maybe_sudo() {
+    if [ "$NEED_SUDO" = true ]; then
+        sudo "$@"
+    else
+        "$@"
+    fi
+}
+
 download() {
     url="$1"
     dest="$2"
@@ -275,15 +283,9 @@ do_install() {
     info "Extracting..."
     tar xzf "${TMPDIR_PATH}/${TARBALL}" -C "$TMPDIR_PATH"
 
-    if [ "$NEED_SUDO" = true ]; then
-        sudo mkdir -p "$INSTALL_DIR"
-        sudo cp "${TMPDIR_PATH}/lazyide" "${INSTALL_DIR}/lazyide"
-        sudo chmod +x "${INSTALL_DIR}/lazyide"
-    else
-        mkdir -p "$INSTALL_DIR"
-        cp "${TMPDIR_PATH}/lazyide" "${INSTALL_DIR}/lazyide"
-        chmod +x "${INSTALL_DIR}/lazyide"
-    fi
+    maybe_sudo mkdir -p "$INSTALL_DIR"
+    maybe_sudo cp "${TMPDIR_PATH}/lazyide" "${INSTALL_DIR}/lazyide"
+    maybe_sudo chmod +x "${INSTALL_DIR}/lazyide"
     info "Installed to ${BOLD}${INSTALL_DIR}/lazyide${RESET}"
 }
 
@@ -392,8 +394,8 @@ install_ripgrep_binary() {
     RG_TMP="$(mktemp -d)"
     download "$RG_URL" "${RG_TMP}/rg.tar.gz"
     tar xzf "${RG_TMP}/rg.tar.gz" -C "$RG_TMP" --strip-components=1
-    cp "${RG_TMP}/rg" "${INSTALL_DIR}/rg"
-    chmod +x "${INSTALL_DIR}/rg"
+    maybe_sudo cp "${RG_TMP}/rg" "${INSTALL_DIR}/rg"
+    maybe_sudo chmod +x "${INSTALL_DIR}/rg"
     rm -rf "$RG_TMP"
     info "ripgrep installed to ${INSTALL_DIR}/rg"
 }
@@ -425,8 +427,8 @@ install_rust_analyzer_binary() {
     RA_TMP="$(mktemp -d)"
     download "$RA_URL" "${RA_TMP}/rust-analyzer.gz"
     gunzip "${RA_TMP}/rust-analyzer.gz"
-    cp "${RA_TMP}/rust-analyzer" "${INSTALL_DIR}/rust-analyzer"
-    chmod +x "${INSTALL_DIR}/rust-analyzer"
+    maybe_sudo cp "${RA_TMP}/rust-analyzer" "${INSTALL_DIR}/rust-analyzer"
+    maybe_sudo chmod +x "${INSTALL_DIR}/rust-analyzer"
     rm -rf "$RA_TMP"
     info "rust-analyzer installed to ${INSTALL_DIR}/rust-analyzer"
 }
