@@ -268,8 +268,7 @@ check_path() {
     if [ -n "$SHELL_RC" ]; then
         if prompt_yn "Add ${INSTALL_DIR} to PATH in ${SHELL_RC}?"; then
             printf '\n# Added by lazyide installer\n%s\n' "$PATH_LINE" >> "$SHELL_RC"
-            export PATH="${INSTALL_DIR}:${PATH}"
-            info "Added to ${SHELL_RC} and current session"
+            info "Added to ${SHELL_RC} — restart your shell or run: ${CYAN}source ${SHELL_RC}${RESET}"
             return
         fi
     fi
