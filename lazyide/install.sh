@@ -19,12 +19,12 @@ NO_PROMPT=false
 
 # --- Colors (respect NO_COLOR) ---
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
-    BOLD='\033[1m'
-    GREEN='\033[32m'
-    YELLOW='\033[33m'
-    RED='\033[31m'
-    CYAN='\033[36m'
-    RESET='\033[0m'
+    BOLD=$(printf '\033[1m')
+    GREEN=$(printf '\033[32m')
+    YELLOW=$(printf '\033[33m')
+    RED=$(printf '\033[31m')
+    CYAN=$(printf '\033[36m')
+    RESET=$(printf '\033[0m')
 else
     BOLD='' GREEN='' YELLOW='' RED='' CYAN='' RESET=''
 fi
@@ -255,21 +255,35 @@ check_path() {
     esac
 
     warn "${INSTALL_DIR} is not in your PATH"
-    printf "\n  Add it by appending one of these to your shell config:\n\n"
 
     SHELL_NAME="$(basename "${SHELL:-/bin/sh}")"
     case "$SHELL_NAME" in
-        zsh)
-            printf "    ${CYAN}echo 'export PATH=\"%s:\$PATH\"' >> ~/.zshrc${RESET}\n" "$INSTALL_DIR"
-            ;;
+        zsh)  SHELL_RC="$HOME/.zshrc" ;;
+        fish) SHELL_RC="" ;;
+        *)    SHELL_RC="$HOME/.bashrc" ;;
+    esac
+
+    PATH_LINE="export PATH=\"${INSTALL_DIR}:\$PATH\""
+
+    if [ -n "$SHELL_RC" ]; then
+        if prompt_yn "Add ${INSTALL_DIR} to PATH in ${SHELL_RC}?"; then
+            printf '\n# Added by lazyide installer\n%s\n' "$PATH_LINE" >> "$SHELL_RC"
+            export PATH="${INSTALL_DIR}:${PATH}"
+            info "Added to ${SHELL_RC} and current session"
+            return
+        fi
+    fi
+
+    printf "\n  Add it manually:\n\n"
+    case "$SHELL_NAME" in
         fish)
-            printf "    ${CYAN}fish_add_path %s${RESET}\n" "$INSTALL_DIR"
+            printf "    %sfish_add_path %s%s\n" "$CYAN" "$INSTALL_DIR" "$RESET"
             ;;
         *)
-            printf "    ${CYAN}echo 'export PATH=\"%s:\$PATH\"' >> ~/.bashrc${RESET}\n" "$INSTALL_DIR"
+            printf "    %secho '%s' >> %s%s\n" "$CYAN" "$PATH_LINE" "${SHELL_RC:-~/.bashrc}" "$RESET"
             ;;
     esac
-    printf "\n  Then restart your shell or run: ${CYAN}export PATH=\"%s:\$PATH\"${RESET}\n\n" "$INSTALL_DIR"
+    printf "\n  Then restart your shell or run: %s%s%s\n\n" "$CYAN" "$PATH_LINE" "$RESET"
 }
 
 # --- Optional dependencies ---
