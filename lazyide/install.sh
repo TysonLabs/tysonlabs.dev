@@ -16,6 +16,7 @@ VERSION=""
 WITH_DEPS=""
 DRY_RUN=false
 NO_PROMPT=false
+PATH_MODIFIED=false
 
 # --- Colors (respect NO_COLOR) ---
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -268,7 +269,8 @@ check_path() {
     if [ -n "$SHELL_RC" ]; then
         if prompt_yn "Add ${INSTALL_DIR} to PATH in ${SHELL_RC}?"; then
             printf '\n# Added by lazyide installer\n%s\n' "$PATH_LINE" >> "$SHELL_RC"
-            info "Added to ${SHELL_RC} — restart your shell or run: ${CYAN}source ${SHELL_RC}${RESET}"
+            PATH_MODIFIED=true
+            info "Added to ${SHELL_RC}"
             return
         fi
     fi
@@ -430,6 +432,12 @@ main() {
         printf "\n  ${GREEN}${BOLD}lazyide ${VERSION} installed successfully!${RESET}\n"
         printf "  Run ${CYAN}lazyide${RESET} to get started.\n"
         printf "  Run ${CYAN}lazyide --setup${RESET} to check optional tool status.\n\n"
+
+        if [ "$PATH_MODIFIED" = true ]; then
+            printf "  ${YELLOW}To use lazyide now, run:${RESET}\n\n"
+            printf "    ${CYAN}export PATH=\"%s:\$PATH\"${RESET}\n\n" "$INSTALL_DIR"
+            printf "  Or restart your terminal.\n\n"
+        fi
     fi
 }
 
