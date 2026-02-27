@@ -47,10 +47,15 @@ function Get-LatestVersion {
 function Test-Existing {
     $existing = Get-Command lazyide -ErrorAction SilentlyContinue
     if ($existing) {
-        $currentVersion = & lazyide --version 2>$null | Select-Object -First 1
+        try {
+            $currentVersion = & lazyide --version 2>&1 | Select-Object -First 1
+            if ($LASTEXITCODE -ne 0) { $currentVersion = "unknown" }
+        } catch {
+            $currentVersion = "unknown"
+        }
         Write-Info "Found existing install: $currentVersion at $($existing.Source)"
         $cleanVersion = $Version -replace '^v', ''
-        if ($currentVersion -match [regex]::Escape($cleanVersion)) {
+        if ($currentVersion -ne "unknown" -and $currentVersion -match [regex]::Escape($cleanVersion)) {
             Write-Info "Already up to date ($Version)"
             if (-not $DryRun) { exit 0 }
         } else {
