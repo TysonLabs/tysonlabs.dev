@@ -6,17 +6,18 @@
 set -eu
 
 REPO="tgeorge06/lazyide"
-DEFAULT_INSTALL_DIR="${HOME}/.local/bin"
 GITHUB_API="https://api.github.com"
 GITHUB_DL="https://github.com"
 
 # --- State ---
-INSTALL_DIR="${LAZYIDE_INSTALL_DIR:-${DEFAULT_INSTALL_DIR}}"
+INSTALL_DIR="${LAZYIDE_INSTALL_DIR:-}"
+EXPLICIT_PREFIX=false
 VERSION=""
 WITH_DEPS=""
 DRY_RUN=false
 NO_PROMPT=false
 PATH_MODIFIED=false
+NEED_SUDO=false
 
 # --- Colors (respect NO_COLOR) ---
 if [ -t 1 ] && [ -z "${NO_COLOR:-}" ]; then
@@ -85,7 +86,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         --prefix)
             [ $# -ge 2 ] || err "--prefix requires a path argument"
-            INSTALL_DIR="$2"; shift 2 ;;
+            INSTALL_DIR="$2"; EXPLICIT_PREFIX=true; shift 2 ;;
         --version)
             [ $# -ge 2 ] || err "--version requires a version argument"
             VERSION="$2"; shift 2 ;;
@@ -106,7 +107,7 @@ Usage:
   sh install.sh [OPTIONS]
 
 Options:
-  --prefix <path>   Install directory (default: ~/.local/bin, or $LAZYIDE_INSTALL_DIR)
+  --prefix <path>   Install directory (default: /usr/local/bin, or $LAZYIDE_INSTALL_DIR)
   --version <tag>   Install a specific version (e.g. v0.3.0; default: latest)
   --with-deps       Also install optional dependencies (ripgrep, rust-analyzer)
   --no-deps         Skip optional dependency installation
@@ -119,6 +120,37 @@ USAGE
             err "Unknown option: $1 (see --help)" ;;
     esac
 done
+
+# --- Resolve install directory ---
+resolve_install_dir() {
+    # If user explicitly set --prefix or LAZYIDE_INSTALL_DIR, use that
+    if [ "$EXPLICIT_PREFIX" = true ] || [ -n "$INSTALL_DIR" ]; then
+        return
+    fi
+
+    # Try /usr/local/bin first (already in PATH on most systems)
+    if [ -w /usr/local/bin ] 2>/dev/null; then
+        INSTALL_DIR="/usr/local/bin"
+    elif [ "$(id -u)" = "0" ]; then
+        INSTALL_DIR="/usr/local/bin"
+    else
+        # Check if we can sudo
+        if has_cmd sudo && sudo -n true 2>/dev/null; then
+            INSTALL_DIR="/usr/local/bin"
+        elif has_cmd sudo; then
+            if prompt_yn "Install to /usr/local/bin (requires sudo)?"; then
+                INSTALL_DIR="/usr/local/bin"
+                NEED_SUDO=true
+            else
+                INSTALL_DIR="${HOME}/.local/bin"
+            fi
+        else
+            INSTALL_DIR="${HOME}/.local/bin"
+        fi
+    fi
+
+    info "Install directory: ${BOLD}${INSTALL_DIR}${RESET}"
+}
 
 # --- Platform detection ---
 detect_platform() {
@@ -243,9 +275,15 @@ do_install() {
     info "Extracting..."
     tar xzf "${TMPDIR_PATH}/${TARBALL}" -C "$TMPDIR_PATH"
 
-    mkdir -p "$INSTALL_DIR"
-    cp "${TMPDIR_PATH}/lazyide" "${INSTALL_DIR}/lazyide"
-    chmod +x "${INSTALL_DIR}/lazyide"
+    if [ "$NEED_SUDO" = true ]; then
+        sudo mkdir -p "$INSTALL_DIR"
+        sudo cp "${TMPDIR_PATH}/lazyide" "${INSTALL_DIR}/lazyide"
+        sudo chmod +x "${INSTALL_DIR}/lazyide"
+    else
+        mkdir -p "$INSTALL_DIR"
+        cp "${TMPDIR_PATH}/lazyide" "${INSTALL_DIR}/lazyide"
+        chmod +x "${INSTALL_DIR}/lazyide"
+    fi
     info "Installed to ${BOLD}${INSTALL_DIR}/lazyide${RESET}"
 }
 
@@ -418,6 +456,7 @@ main() {
     detect_platform
     info "Detected: ${PLATFORM} ${ARCH}"
 
+    resolve_install_dir
     resolve_version
     check_existing
     do_install
