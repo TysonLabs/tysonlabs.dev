@@ -39,7 +39,7 @@ err()   { printf "${RED}error${RESET} %s\n" "$*" >&2; exit 1; }
 has_cmd() { command -v "$1" >/dev/null 2>&1; }
 
 maybe_sudo() {
-    if [ "$NEED_SUDO" = true ]; then
+    if [ "$NEED_SUDO" = true ] || { [ ! -w "$INSTALL_DIR" ] && [ "$(id -u)" != "0" ]; }; then
         sudo "$@"
     else
         "$@"
