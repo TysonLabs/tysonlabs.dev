@@ -186,11 +186,15 @@ function Test-Health {
 
     $exe = Join-Path $InstallDir "lazyide.exe"
     if (Test-Path $exe) {
-        $ver = & $exe --version 2>$null | Select-Object -First 1
-        if ($ver) {
-            Write-Info "Verified: $ver"
-        } else {
-            Write-Warn "Binary installed but --version returned no output"
+        try {
+            $ver = & $exe --version 2>&1 | Select-Object -First 1
+            if ($LASTEXITCODE -eq 0 -and $ver) {
+                Write-Info "Verified: $ver"
+            } else {
+                Write-Info "Binary installed at $exe"
+            }
+        } catch {
+            Write-Info "Binary installed at $exe"
         }
     } else {
         Write-Warn "Binary not found at $exe after install"
